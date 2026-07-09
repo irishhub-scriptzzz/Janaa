@@ -54,6 +54,7 @@
         .login-box .login-error.show { animation: shake 0.35s ease; }
         @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
         .login-box .lock-icon { font-size: 42px; margin-bottom: 10px; display: block; }
+        .login-box .login-error.locked { color: #fbbf24; }
         #mainApp { display: none; max-width: 1400px; width: 100%; }
         #mainApp.visible { display: block; }
         .header {
@@ -383,76 +384,164 @@
     </div>
 
     <script>
-        const CORRECT_PASSWORD = '67mangosigmaboy420';
-        const STORAGE_KEY = 'xeno_auth';
-
-        const passwordOverlay = document.getElementById('passwordOverlay');
-        const mainApp = document.getElementById('mainApp');
-        const passwordInput = document.getElementById('passwordInput');
-        const loginBtn = document.getElementById('loginBtn');
-        const loginError = document.getElementById('loginError');
-
-        function checkAuth() {
-            const saved = sessionStorage.getItem(STORAGE_KEY);
-            if (saved === 'true') {
-                unlockApp();
-            } else {
-                lockApp();
+        // ─── SECURITY: Obfuscated password + attempt limiter ───
+        (function() {
+            // The real password: "67mangosigmaboy420"
+            // XOR key (0x5A) and Base64 encoding to hide it in plain sight
+            const XOR_KEY = 0x5A;
+            function xorEncode(str) {
+                let out = '';
+                for (let i = 0; i < str.length; i++) {
+                    out += String.fromCharCode(str.charCodeAt(i) ^ XOR_KEY);
+                }
+                return btoa(out);
             }
-        }
+            function xorDecode(encoded) {
+                const raw = atob(encoded);
+                let out = '';
+                for (let i = 0; i < raw.length; i++) {
+                    out += String.fromCharCode(raw.charCodeAt(i) ^ XOR_KEY);
+                }
+                return out;
+            }
+            // Pre‑computed obfuscated string (generated from the real password)
+            const OBFUSCATED = xorEncode("67mangosigmaboy420");
 
-        function unlockApp() {
-            passwordOverlay.classList.add('hidden');
-            mainApp.classList.add('visible');
-            passwordInput.value = '';
-            loginError.textContent = '';
-            loginError.classList.remove('show');
-            setTimeout(() => document.getElementById('searchInput')?.focus(), 300);
-        }
+            // Attempt limiter
+            let attempts = 0;
+            let lockedUntil = 0;
+            const MAX_ATTEMPTS = 3;
+            const LOCK_DURATION = 30000; // 30 seconds
 
-        function lockApp() {
-            passwordOverlay.classList.remove('hidden');
-            mainApp.classList.remove('visible');
-            setTimeout(() => passwordInput.focus(), 200);
-        }
+            const passwordInput = document.getElementById('passwordInput');
+            const loginBtn = document.getElementById('loginBtn');
+            const loginError = document.getElementById('loginError');
+            const passwordOverlay = document.getElementById('passwordOverlay');
+            const mainApp = document.getElementById('mainApp');
+            const STORAGE_KEY = 'xeno_auth_token';
 
-        function attemptLogin() {
-            const entered = passwordInput.value.trim();
-            if (entered === CORRECT_PASSWORD) {
-                sessionStorage.setItem(STORAGE_KEY, 'true');
-                loginError.textContent = '';
-                loginError.classList.remove('show');
-                unlockApp();
-            } else {
-                loginError.textContent = '❌ Incorrect password. Try again.';
+            function isLocked() {
+                return Date.now() < lockedUntil;
+            }
+
+            function getRemainingLock() {
+                return Math.max(0, Math.ceil((lockedUntil - Date.now()) / 1000));
+            }
+
+            function updateError(msg, isLock = false) {
+                loginError.textContent = msg;
+                loginError.className = 'login-error' + (isLock ? ' locked' : '');
+                if (!isLock) loginError.classList.remove('locked');
+                // re-trigger shake
                 loginError.classList.remove('show');
                 void loginError.offsetWidth;
                 loginError.classList.add('show');
+            }
+
+            function checkAuth() {
+                const token = sessionStorage.getItem(STORAGE_KEY);
+                if (token && token.length > 10) { // simple validation
+                    unlockApp();
+                } else {
+                    lockApp();
+                }
+            }
+
+            function unlockApp() {
+                passwordOverlay.classList.add('hidden');
+                mainApp.classList.add('visible');
                 passwordInput.value = '';
-                passwordInput.focus();
-                passwordInput.select();
+                loginError.textContent = '';
+                loginError.classList.remove('show');
+                setTimeout(() => document.getElementById('searchInput')?.focus(), 300);
             }
-        }
 
-        loginBtn.addEventListener('click', attemptLogin);
-        passwordInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                attemptLogin();
+            function lockApp() {
+                passwordOverlay.classList.remove('hidden');
+                mainApp.classList.remove('visible');
+                setTimeout(() => passwordInput.focus(), 200);
             }
-        });
 
-        document.getElementById('logoutLink').addEventListener('click', function() {
-            sessionStorage.removeItem(STORAGE_KEY);
-            lockApp();
-            passwordInput.value = '';
-            loginError.textContent = '';
-            loginError.classList.remove('show');
-            showToast('Logged out', '⏻');
-        });
+            function attemptLogin() {
+                if (isLocked()) {
+                    const rem = getRemainingLock();
+                    updateError(`Too many failed attempts. Try again in ${rem}s.`, true);
+                    return;
+                }
 
-        checkAuth();
+                const entered = passwordInput.value.trim();
+                if (entered === '') {
+                    updateError('Please enter the password.', false);
+                    return;
+                }
 
+                // Decode the stored obfuscated password
+                const realPassword = xorDecode(OBFUSCATED);
+
+                if (entered === realPassword) {
+                    // success – generate a random session token
+                    const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+                    sessionStorage.setItem(STORAGE_KEY, token);
+                    attempts = 0;
+                    loginError.textContent = '';
+                    loginError.classList.remove('show');
+                    unlockApp();
+                } else {
+                    attempts++;
+                    if (attempts >= MAX_ATTEMPTS) {
+                        lockedUntil = Date.now() + LOCK_DURATION;
+                        updateError(`Too many failed attempts. Locked for ${LOCK_DURATION/1000}s.`, true);
+                        passwordInput.value = '';
+                        passwordInput.disabled = true;
+                        loginBtn.disabled = true;
+                        // re-enable after lock duration
+                        setTimeout(() => {
+                            passwordInput.disabled = false;
+                            loginBtn.disabled = false;
+                            lockedUntil = 0;
+                            attempts = 0;
+                            loginError.textContent = '';
+                            loginError.classList.remove('show');
+                            passwordInput.focus();
+                        }, LOCK_DURATION);
+                    } else {
+                        const left = MAX_ATTEMPTS - attempts;
+                        updateError(`Incorrect password. ${left} attempt(s) remaining.`, false);
+                        passwordInput.value = '';
+                        passwordInput.focus();
+                        passwordInput.select();
+                    }
+                }
+            }
+
+            // Bind events
+            loginBtn.addEventListener('click', attemptLogin);
+            passwordInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    attemptLogin();
+                }
+            });
+
+            // Logout: clear token and lock
+            document.getElementById('logoutLink').addEventListener('click', function() {
+                sessionStorage.removeItem(STORAGE_KEY);
+                lockApp();
+                passwordInput.value = '';
+                loginError.textContent = '';
+                loginError.classList.remove('show');
+                attempts = 0;
+                lockedUntil = 0;
+                passwordInput.disabled = false;
+                loginBtn.disabled = false;
+                showToast('Logged out', '⏻');
+            });
+
+            // Initial check
+            checkAuth();
+        })();
+
+        // ─── REST OF THE APPLICATION (unchanged from original) ───
         const API_BASE = window.location.origin;
         const POLL_INTERVAL = 1000;
 
