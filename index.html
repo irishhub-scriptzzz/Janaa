@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
     <title>Xeno Panel</title>
     <style>
-        /* ─── all your existing styles (same as before) ─── */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', -apple-system, sans-serif; background: #0b0d11; color: #e8edf5; min-height: 100vh; padding: 16px; display: flex; justify-content: center; }
         ::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -329,14 +328,14 @@
 <script>
     // ─── LOGOUT ───
     document.getElementById('logoutLink').addEventListener('click', function() {
-        fetch('/api/logout', { method: 'POST' }).then(() => {
+        fetch('/api/logout', { method: 'POST', credentials: 'include' }).then(() => {
             window.location.href = '/login';
         }).catch(() => {
             window.location.href = '/login';
         });
     });
 
-    // ─── REST OF THE PANEL LOGIC (same as before) ───
+    // ─── PANEL LOGIC ───
     const API_BASE = window.location.origin;
     const POLL_INTERVAL = 1000;
 
@@ -405,7 +404,11 @@
 
     async function fetchPlayers() {
         try {
-            const res = await fetch(API_BASE + '/api/players');
+            const res = await fetch(API_BASE + '/api/players', { credentials: 'include' });
+            if (res.status === 401) {
+                window.location.href = '/login';
+                return [];
+            }
             if (!res.ok) throw new Error('Server error');
             const data = await res.json();
             return data.players || [];
@@ -417,8 +420,10 @@
             const res = await fetch(API_BASE + '/api/command', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({ user_id: userId, ...payload })
             });
+            if (res.status === 401) { window.location.href = '/login'; return null; }
             if (!res.ok) throw new Error('Command failed');
             return await res.json();
         } catch (e) {
@@ -538,7 +543,8 @@
 
     async function fetchPlayerCommandState(userId) {
         try {
-            const res = await fetch(API_BASE + '/api/command_state?user_id=' + encodeURIComponent(userId));
+            const res = await fetch(API_BASE + '/api/command_state?user_id=' + encodeURIComponent(userId), { credentials: 'include' });
+            if (res.status === 401) { window.location.href = '/login'; return; }
             if (!res.ok) return;
             const data = await res.json();
             if (data) {
@@ -563,7 +569,7 @@
             const payload = {};
             payload[cmdKey] = newState;
             sendCommand(selectedUserId, payload).then(() => {
-                showToast(\`\${cmdKey} → \${newState ? 'ON' : 'OFF'}\`, '✓');
+                showToast(`${cmdKey} → ${newState ? 'ON' : 'OFF'}`, '✓');
             }).catch(() => {
                 commandState[cmdKey] = current;
                 setToggleState(this, current);
@@ -580,8 +586,8 @@
         if (!selectedUserId) { showToast('Select a player', '⚠️'); return; }
         const player = players.get(selectedUserId);
         if (!player || !player.online) { showToast('Player offline', '⚠️'); return; }
-        if (!confirm(\`Kick \${player.username || 'player'}?\`)) return;
-        sendCommand(selectedUserId, { kick: true }).then(() => showToast(\`Kicked \${player.username}\`, '🚪'));
+        if (!confirm(`Kick ${player.username || 'player'}?`)) return;
+        sendCommand(selectedUserId, { kick: true }).then(() => showToast(`Kicked ${player.username}`, '🚪'));
     });
 
     btnCrash.addEventListener('click', function() {
@@ -589,8 +595,8 @@
         if (!selectedUserId) { showToast('Select a player', '⚠️'); return; }
         const player = players.get(selectedUserId);
         if (!player || !player.online) { showToast('Player offline', '⚠️'); return; }
-        if (!confirm(\`Crash \${player.username || 'player'}?\`)) return;
-        sendCommand(selectedUserId, { crash: true }).then(() => showToast(\`Crash sent to \${player.username}\`, '💥'));
+        if (!confirm(`Crash ${player.username || 'player'}?`)) return;
+        sendCommand(selectedUserId, { crash: true }).then(() => showToast(`Crash sent to ${player.username}`, '💥'));
     });
 
     let pollCount = 0;
@@ -626,12 +632,11 @@
         renderPlayers();
     });
 
-    // Start polling immediately (no auth check needed – server handles it)
+    // Start polling
     poll();
     setInterval(poll, POLL_INTERVAL);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 
-    // Auto-select first online player after a moment
     setTimeout(() => {
         if (!selectedUserId) {
             const first = Array.from(players.values()).find(p => p.online);
