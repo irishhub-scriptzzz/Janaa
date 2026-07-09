@@ -5,58 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
     <title>Xeno Panel</title>
     <style>
+        /* ─── all your existing styles (same as before) ─── */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', -apple-system, sans-serif; background: #0b0d11; color: #e8edf5; min-height: 100vh; padding: 16px; display: flex; justify-content: center; }
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: #14181f; border-radius: 8px; }
         ::-webkit-scrollbar-thumb { background: #2a3340; border-radius: 8px; }
         ::-webkit-scrollbar-thumb:hover { background: #3d4a5c; }
-        #passwordOverlay {
-            position: fixed; inset: 0; z-index: 9999; background: #0b0d11;
-            display: flex; align-items: center; justify-content: center; padding: 20px;
-            transition: opacity 0.5s ease, visibility 0.5s ease;
-        }
-        #passwordOverlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
-        .login-box {
-            background: #12171f; border: 1px solid #1f2937; border-radius: 20px;
-            padding: 40px 36px 34px; max-width: 400px; width: 100%; text-align: center;
-            box-shadow: 0 24px 64px rgba(0,0,0,0.8);
-        }
-        .login-box .logo {
-            font-size: 28px; font-weight: 700; letter-spacing: -0.5px;
-            background: linear-gradient(135deg, #a78bfa, #6366f1);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            background-clip: text; display: inline-block; margin-bottom: 4px;
-        }
-        .login-box .logo-sub {
-            font-size: 13px; color: #6b7a8f; background: #1a212b;
-            padding: 2px 14px; border-radius: 20px; border: 1px solid #26313f;
-            display: inline-block; margin-bottom: 16px;
-        }
-        .login-box .tagline { font-size: 14px; color: #9aabb8; margin-bottom: 24px; line-height: 1.4; }
-        .login-box .input-group { display: flex; flex-direction: column; gap: 12px; }
-        .login-box input[type="password"] {
-            width: 100%; padding: 12px 16px; background: #0d1117;
-            border: 1px solid #1f2937; border-radius: 30px; color: #e8edf5;
-            font-size: 15px; outline: none; transition: border 0.2s;
-        }
-        .login-box input[type="password"]::placeholder { color: #4b5a6e; }
-        .login-box input[type="password"]:focus { border-color: #6366f1; }
-        .login-box .login-btn {
-            width: 100%; padding: 12px; border: none; border-radius: 30px;
-            font-size: 15px; font-weight: 600; cursor: pointer;
-            background: linear-gradient(135deg, #6366f1, #818cf8); color: #fff;
-            transition: transform 0.15s, box-shadow 0.2s;
-        }
-        .login-box .login-btn:hover { transform: scale(1.01); box-shadow: 0 4px 24px rgba(99,102,241,0.3); }
-        .login-box .login-btn:active { transform: scale(0.97); }
-        .login-box .login-error { color: #f87171; font-size: 13px; min-height: 20px; margin-top: 8px; }
-        .login-box .login-error.show { animation: shake 0.35s ease; }
-        @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
-        .login-box .lock-icon { font-size: 42px; margin-bottom: 10px; display: block; }
-        .login-box .login-error.locked { color: #fbbf24; }
-        #mainApp { display: none; max-width: 1400px; width: 100%; }
-        #mainApp.visible { display: block; }
+        .app { max-width: 1400px; width: 100%; }
         .header {
             display: flex; align-items: center; justify-content: space-between;
             padding: 14px 20px; background: #12171f; border-radius: 14px;
@@ -74,6 +30,11 @@
             padding: 3px 12px; border-radius: 20px; border: 1px solid #26313f;
             -webkit-text-fill-color: #8b9bb5; white-space: nowrap;
         }
+        .logout-link {
+            font-size: 11px; color: #4b5a6e; cursor: pointer; transition: color 0.2s;
+            text-decoration: underline dotted; margin-left: 4px;
+        }
+        .logout-link:hover { color: #f87171; }
         .header-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .copy-loader-btn {
             background: #1a212b; border: 1px solid #2a3646; color: #c8d2df;
@@ -207,8 +168,6 @@
             .toggle-wrap { min-width: 70px; flex: 1 0 calc(50% - 8px); }
             .cmd-btn-group .cmd-btn { flex: 1 0 calc(50% - 8px); }
             .brainrot-item .title { max-width: 100px; }
-            .login-box { padding: 30px 20px 26px; }
-            .login-box .logo { font-size: 24px; }
         }
         @media (max-width: 400px) {
             .header-left { gap: 8px; }
@@ -258,631 +217,428 @@
         .loader-modal .modal-actions .btn-primary { background: #6366f1; border-color: #818cf8; color: #fff; }
         .loader-modal .modal-actions .btn-primary:hover { background: #818cf8; }
         .loader-modal .modal-actions .btn:hover { background: #2a3646; }
-        .logout-link { font-size: 11px; color: #4b5a6e; cursor: pointer; transition: color 0.2s; text-decoration: underline dotted; margin-left: 4px; }
-        .logout-link:hover { color: #f87171; }
     </style>
 </head>
 <body>
 
-    <div class="toast" id="toast"></div>
+<div class="toast" id="toast"></div>
 
-    <div class="loader-modal-overlay" id="loaderModal">
-        <div class="loader-modal">
-            <h3>Copy Loader</h3>
-            <p class="sub">Paste this into any executor.</p>
-            <div class="code-block" id="loaderCodeBlock">
-                <span class="copy-hint">click to copy</span>
-                <span id="loaderCodeText"></span>
-            </div>
-            <div class="modal-actions">
-                <button class="btn" onclick="closeLoaderModal()">Close</button>
-                <button class="btn btn-primary" id="copyLoaderBtn">Copy</button>
-            </div>
+<div class="loader-modal-overlay" id="loaderModal">
+    <div class="loader-modal">
+        <h3>Copy Loader</h3>
+        <p class="sub">Paste this into any executor.</p>
+        <div class="code-block" id="loaderCodeBlock">
+            <span class="copy-hint">click to copy</span>
+            <span id="loaderCodeText"></span>
+        </div>
+        <div class="modal-actions">
+            <button class="btn" onclick="closeLoaderModal()">Close</button>
+            <button class="btn btn-primary" id="copyLoaderBtn">Copy</button>
         </div>
     </div>
+</div>
 
-    <div id="passwordOverlay">
-        <div class="login-box">
-            <span class="lock-icon">🔐</span>
-            <div class="logo">Xeno Panel</div>
-            <div class="logo-sub">v3 · secured</div>
-            <p class="tagline">Enter the access password to continue.</p>
-            <div class="input-group">
-                <input type="password" id="passwordInput" placeholder="Enter password…" autofocus />
-                <button class="login-btn" id="loginBtn">Unlock Panel</button>
-                <div class="login-error" id="loginError"></div>
+<div class="app" id="mainApp">
+    <header class="header">
+        <div class="header-left">
+            <span class="logo-main">Xeno Panel</span>
+            <span class="logo-sub">v3</span>
+            <span class="logout-link" id="logoutLink">⏻ logout</span>
+        </div>
+        <div class="header-actions">
+            <button class="copy-loader-btn" onclick="openLoaderModal()">
+                <span class="icon">📋</span> Copy loader
+            </button>
+            <div class="header-stats">
+                <span>🟢 <span class="num" id="onlineCount">0</span> online</span>
+                <span>⏱ <span class="num" id="refreshTimer">1s</span></span>
             </div>
         </div>
-    </div>
+    </header>
 
-    <div class="app" id="mainApp">
-        <header class="header">
-            <div class="header-left">
-                <span class="logo-main">Xeno Panel</span>
-                <span class="logo-sub">v3</span>
-                <span class="logout-link" id="logoutLink">⏻ logout</span>
+    <div class="main">
+        <section class="players-section">
+            <div class="section-header">
+                <h2>👥 Players <span class="badge" id="totalBadge">0</span></h2>
+                <span class="last-update" id="lastUpdate">updating…</span>
             </div>
-            <div class="header-actions">
-                <button class="copy-loader-btn" onclick="openLoaderModal()">
-                    <span class="icon">📋</span> Copy loader
-                </button>
-                <div class="header-stats">
-                    <span>🟢 <span class="num" id="onlineCount">0</span> online</span>
-                    <span>⏱ <span class="num" id="refreshTimer">1s</span></span>
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Search by username, display name, or brainrot…" />
+            </div>
+            <div class="player-grid" id="playerGrid">
+                <div class="empty-state">
+                    <div class="icon">📡</div>
+                    <p>Waiting for clients…</p>
+                    <p class="sub">Execute the loader script to see players appear.</p>
                 </div>
             </div>
-        </header>
+        </section>
 
-        <div class="main">
-            <section class="players-section">
-                <div class="section-header">
-                    <h2>👥 Players <span class="badge" id="totalBadge">0</span></h2>
-                    <span class="last-update" id="lastUpdate">updating…</span>
-                </div>
-                <div class="search-bar">
-                    <input type="text" id="searchInput" placeholder="Search by username, display name, or brainrot…" />
-                </div>
-                <div class="player-grid" id="playerGrid">
-                    <div class="empty-state">
-                        <div class="icon">📡</div>
-                        <p>Waiting for clients…</p>
-                        <p class="sub">Execute the loader script to see players appear.</p>
+        <aside class="command-panel" id="commandPanel">
+            <div class="panel-title">🎮 Control <span class="target-name" id="targetName">—</span></div>
+            <div class="panel-sub"><span id="targetStatus">No player selected</span></div>
+
+            <div class="cmd-group">
+                <span class="cmd-label">Performance</span>
+                <div class="cmd-row">
+                    <div class="toggle-wrap disabled" id="toggleFps" data-cmd="fps_limit">
+                        <span class="label">FPS Limit</span>
+                        <div class="toggle-track"><span class="thumb"></span></div>
+                        <span class="status-text">OFF</span>
                     </div>
                 </div>
-            </section>
+            </div>
 
-            <aside class="command-panel" id="commandPanel">
-                <div class="panel-title">🎮 Control <span class="target-name" id="targetName">—</span></div>
-                <div class="panel-sub"><span id="targetStatus">No player selected</span></div>
-
-                <div class="cmd-group">
-                    <span class="cmd-label">Performance</span>
-                    <div class="cmd-row">
-                        <div class="toggle-wrap disabled" id="toggleFps" data-cmd="fps_limit">
-                            <span class="label">FPS Limit</span>
-                            <div class="toggle-track"><span class="thumb"></span></div>
-                            <span class="status-text">OFF</span>
-                        </div>
+            <div class="cmd-group">
+                <span class="cmd-label">Lag Engine</span>
+                <div class="cmd-row">
+                    <div class="toggle-wrap disabled" id="toggleLagN" data-cmd="lag_n">
+                        <span class="label">Lag (Normal)</span>
+                        <div class="toggle-track"><span class="thumb"></span></div>
+                        <span class="status-text">OFF</span>
+                    </div>
+                    <div class="toggle-wrap disabled" id="toggleLagC" data-cmd="lag_c">
+                        <span class="label">Lag (Carry)</span>
+                        <div class="toggle-track"><span class="thumb"></span></div>
+                        <span class="status-text">OFF</span>
                     </div>
                 </div>
+            </div>
 
-                <div class="cmd-group">
-                    <span class="cmd-label">Lag Engine</span>
-                    <div class="cmd-row">
-                        <div class="toggle-wrap disabled" id="toggleLagN" data-cmd="lag_n">
-                            <span class="label">Lag (Normal)</span>
-                            <div class="toggle-track"><span class="thumb"></span></div>
-                            <span class="status-text">OFF</span>
-                        </div>
-                        <div class="toggle-wrap disabled" id="toggleLagC" data-cmd="lag_c">
-                            <span class="label">Lag (Carry)</span>
-                            <div class="toggle-track"><span class="thumb"></span></div>
-                            <span class="status-text">OFF</span>
-                        </div>
-                    </div>
+            <div class="cmd-group">
+                <span class="cmd-label">Actions</span>
+                <div class="cmd-btn-group">
+                    <button class="cmd-btn danger" id="btnKick" disabled>Kick</button>
+                    <button class="cmd-btn warning" id="btnCrash" disabled>Crash</button>
                 </div>
+            </div>
 
-                <div class="cmd-group">
-                    <span class="cmd-label">Actions</span>
-                    <div class="cmd-btn-group">
-                        <button class="cmd-btn danger" id="btnKick" disabled>Kick</button>
-                        <button class="cmd-btn warning" id="btnCrash" disabled>Crash</button>
-                    </div>
+            <div class="brainrot-section" id="brainrotSection">
+                <div class="brainrot-label">
+                    <span>🧠 BRAINROTS</span>
+                    <span class="count" id="brainrotCount">0 items</span>
                 </div>
-
-                <div class="brainrot-section" id="brainrotSection">
-                    <div class="brainrot-label">
-                        <span>🧠 BRAINROTS</span>
-                        <span class="count" id="brainrotCount">0 items</span>
-                    </div>
-                    <div class="brainrot-list" id="brainrotList">
-                        <div class="brainrot-empty">Select a player to see brainrots</div>
-                    </div>
+                <div class="brainrot-list" id="brainrotList">
+                    <div class="brainrot-empty">Select a player to see brainrots</div>
                 </div>
-            </aside>
-        </div>
+            </div>
+        </aside>
     </div>
+</div>
 
-    <script>
-        // ─── SECURITY: Obfuscated password + attempt limiter ───
-        (function() {
-            // The real password: "67mangosigmaboy420"
-            // XOR key (0x5A) and Base64 encoding to hide it in plain sight
-            const XOR_KEY = 0x5A;
-            function xorEncode(str) {
-                let out = '';
-                for (let i = 0; i < str.length; i++) {
-                    out += String.fromCharCode(str.charCodeAt(i) ^ XOR_KEY);
-                }
-                return btoa(out);
-            }
-            function xorDecode(encoded) {
-                const raw = atob(encoded);
-                let out = '';
-                for (let i = 0; i < raw.length; i++) {
-                    out += String.fromCharCode(raw.charCodeAt(i) ^ XOR_KEY);
-                }
-                return out;
-            }
-            // Pre‑computed obfuscated string (generated from the real password)
-            const OBFUSCATED = xorEncode("67mangosigmaboy420");
+<script>
+    // ─── LOGOUT ───
+    document.getElementById('logoutLink').addEventListener('click', function() {
+        fetch('/api/logout', { method: 'POST' }).then(() => {
+            window.location.href = '/login';
+        }).catch(() => {
+            window.location.href = '/login';
+        });
+    });
 
-            // Attempt limiter
-            let attempts = 0;
-            let lockedUntil = 0;
-            const MAX_ATTEMPTS = 3;
-            const LOCK_DURATION = 30000; // 30 seconds
+    // ─── REST OF THE PANEL LOGIC (same as before) ───
+    const API_BASE = window.location.origin;
+    const POLL_INTERVAL = 1000;
 
-            const passwordInput = document.getElementById('passwordInput');
-            const loginBtn = document.getElementById('loginBtn');
-            const loginError = document.getElementById('loginError');
-            const passwordOverlay = document.getElementById('passwordOverlay');
-            const mainApp = document.getElementById('mainApp');
-            const STORAGE_KEY = 'xeno_auth_token';
+    let players = new Map();
+    let selectedUserId = null;
+    let commandState = { fps_limit: false, lag_n: false, lag_c: false };
+    let toastTimeout = null;
+    let searchQuery = '';
 
-            function isLocked() {
-                return Date.now() < lockedUntil;
-            }
+    const $ = (s) => document.querySelector(s);
+    const $$ = (s) => document.querySelectorAll(s);
 
-            function getRemainingLock() {
-                return Math.max(0, Math.ceil((lockedUntil - Date.now()) / 1000));
-            }
+    const playerGrid = $('#playerGrid');
+    const onlineCount = $('#onlineCount');
+    const totalBadge = $('#totalBadge');
+    const lastUpdate = $('#lastUpdate');
+    const refreshTimer = $('#refreshTimer');
+    const targetName = $('#targetName');
+    const targetStatus = $('#targetStatus');
+    const toggleFps = $('#toggleFps');
+    const toggleLagN = $('#toggleLagN');
+    const toggleLagC = $('#toggleLagC');
+    const btnKick = $('#btnKick');
+    const btnCrash = $('#btnCrash');
+    const brainrotList = $('#brainrotList');
+    const brainrotCount = $('#brainrotCount');
+    const toast = $('#toast');
+    const searchInput = $('#searchInput');
 
-            function updateError(msg, isLock = false) {
-                loginError.textContent = msg;
-                loginError.className = 'login-error' + (isLock ? ' locked' : '');
-                if (!isLock) loginError.classList.remove('locked');
-                // re-trigger shake
-                loginError.classList.remove('show');
-                void loginError.offsetWidth;
-                loginError.classList.add('show');
-            }
+    function showToast(msg, icon = '✓') {
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toast.innerHTML = `<span class="toast-icon">${icon}</span> ${msg}`;
+        toast.classList.add('show');
+        toastTimeout = setTimeout(() => toast.classList.remove('show'), 2800);
+    }
 
-            function checkAuth() {
-                const token = sessionStorage.getItem(STORAGE_KEY);
-                if (token && token.length > 10) { // simple validation
-                    unlockApp();
-                } else {
-                    lockApp();
-                }
-            }
+    function openLoaderModal() {
+        const modal = $('#loaderModal');
+        const loaderUrl = API_BASE + '/loader.lua';
+        document.getElementById('loaderCodeText').textContent = `loadstring(game:HttpGet("${loaderUrl}"))()`;
+        modal.classList.add('open');
+    }
 
-            function unlockApp() {
-                passwordOverlay.classList.add('hidden');
-                mainApp.classList.add('visible');
-                passwordInput.value = '';
-                loginError.textContent = '';
-                loginError.classList.remove('show');
-                setTimeout(() => document.getElementById('searchInput')?.focus(), 300);
-            }
+    function closeLoaderModal() { $('#loaderModal').classList.remove('open'); }
+    $('#loaderModal').addEventListener('click', function(e) { if (e.target === this) closeLoaderModal(); });
+    $('#copyLoaderBtn').addEventListener('click', function() {
+        const text = document.getElementById('loaderCodeText').textContent;
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Loader code copied!', '📋');
+            closeLoaderModal();
+        }).catch(() => {
+            const range = document.createRange();
+            const sel = window.getSelection();
+            const el = document.getElementById('loaderCodeText');
+            range.selectNodeContents(el);
+            sel.removeAllRanges();
+            sel.addRange(range);
+            document.execCommand('copy');
+            showToast('Loader code copied!', '📋');
+            closeLoaderModal();
+        });
+    });
+    document.getElementById('loaderCodeBlock').addEventListener('click', function() {
+        document.getElementById('copyLoaderBtn').click();
+    });
 
-            function lockApp() {
-                passwordOverlay.classList.remove('hidden');
-                mainApp.classList.remove('visible');
-                setTimeout(() => passwordInput.focus(), 200);
-            }
+    async function fetchPlayers() {
+        try {
+            const res = await fetch(API_BASE + '/api/players');
+            if (!res.ok) throw new Error('Server error');
+            const data = await res.json();
+            return data.players || [];
+        } catch (e) { return []; }
+    }
 
-            function attemptLogin() {
-                if (isLocked()) {
-                    const rem = getRemainingLock();
-                    updateError(`Too many failed attempts. Try again in ${rem}s.`, true);
-                    return;
-                }
-
-                const entered = passwordInput.value.trim();
-                if (entered === '') {
-                    updateError('Please enter the password.', false);
-                    return;
-                }
-
-                // Decode the stored obfuscated password
-                const realPassword = xorDecode(OBFUSCATED);
-
-                if (entered === realPassword) {
-                    // success – generate a random session token
-                    const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
-                    sessionStorage.setItem(STORAGE_KEY, token);
-                    attempts = 0;
-                    loginError.textContent = '';
-                    loginError.classList.remove('show');
-                    unlockApp();
-                } else {
-                    attempts++;
-                    if (attempts >= MAX_ATTEMPTS) {
-                        lockedUntil = Date.now() + LOCK_DURATION;
-                        updateError(`Too many failed attempts. Locked for ${LOCK_DURATION/1000}s.`, true);
-                        passwordInput.value = '';
-                        passwordInput.disabled = true;
-                        loginBtn.disabled = true;
-                        // re-enable after lock duration
-                        setTimeout(() => {
-                            passwordInput.disabled = false;
-                            loginBtn.disabled = false;
-                            lockedUntil = 0;
-                            attempts = 0;
-                            loginError.textContent = '';
-                            loginError.classList.remove('show');
-                            passwordInput.focus();
-                        }, LOCK_DURATION);
-                    } else {
-                        const left = MAX_ATTEMPTS - attempts;
-                        updateError(`Incorrect password. ${left} attempt(s) remaining.`, false);
-                        passwordInput.value = '';
-                        passwordInput.focus();
-                        passwordInput.select();
-                    }
-                }
-            }
-
-            // Bind events
-            loginBtn.addEventListener('click', attemptLogin);
-            passwordInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    attemptLogin();
-                }
+    async function sendCommand(userId, payload) {
+        try {
+            const res = await fetch(API_BASE + '/api/command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, ...payload })
             });
+            if (!res.ok) throw new Error('Command failed');
+            return await res.json();
+        } catch (e) {
+            showToast('Command failed: ' + e.message, '✗');
+            return null;
+        }
+    }
 
-            // Logout: clear token and lock
-            document.getElementById('logoutLink').addEventListener('click', function() {
-                sessionStorage.removeItem(STORAGE_KEY);
-                lockApp();
-                passwordInput.value = '';
-                loginError.textContent = '';
-                loginError.classList.remove('show');
-                attempts = 0;
-                lockedUntil = 0;
-                passwordInput.disabled = false;
-                loginBtn.disabled = false;
-                showToast('Logged out', '⏻');
+    function renderPlayers() {
+        const entries = Array.from(players.values());
+        let filtered = entries;
+        if (searchQuery.trim() !== '') {
+            const q = searchQuery.trim().toLowerCase();
+            filtered = entries.filter(p => {
+                const matchUsername = p.username && p.username.toLowerCase().includes(q);
+                const matchDisplay = p.display_name && p.display_name.toLowerCase().includes(q);
+                const matchBrainrot = p.brainrots && p.brainrots.some(b => b.title && b.title.toLowerCase().includes(q));
+                return matchUsername || matchDisplay || matchBrainrot;
             });
-
-            // Initial check
-            checkAuth();
-        })();
-
-        // ─── REST OF THE APPLICATION (unchanged from original) ───
-        const API_BASE = window.location.origin;
-        const POLL_INTERVAL = 1000;
-
-        let players = new Map();
-        let selectedUserId = null;
-        let commandState = { fps_limit: false, lag_n: false, lag_c: false };
-        let toastTimeout = null;
-        let searchQuery = '';
-
-        const $ = (s) => document.querySelector(s);
-        const $$ = (s) => document.querySelectorAll(s);
-
-        const playerGrid = $('#playerGrid');
-        const onlineCount = $('#onlineCount');
-        const totalBadge = $('#totalBadge');
-        const lastUpdate = $('#lastUpdate');
-        const refreshTimer = $('#refreshTimer');
-        const targetName = $('#targetName');
-        const targetStatus = $('#targetStatus');
-        const toggleFps = $('#toggleFps');
-        const toggleLagN = $('#toggleLagN');
-        const toggleLagC = $('#toggleLagC');
-        const btnKick = $('#btnKick');
-        const btnCrash = $('#btnCrash');
-        const brainrotList = $('#brainrotList');
-        const brainrotCount = $('#brainrotCount');
-        const toast = $('#toast');
-        const searchInput = $('#searchInput');
-
-        function showToast(msg, icon = '✓') {
-            if (toastTimeout) clearTimeout(toastTimeout);
-            toast.innerHTML = `<span class="toast-icon">${icon}</span> ${msg}`;
-            toast.classList.add('show');
-            toastTimeout = setTimeout(() => toast.classList.remove('show'), 2800);
         }
 
-        function openLoaderModal() {
-            const modal = $('#loaderModal');
-            const loaderUrl = API_BASE + '/loader.lua';
-            document.getElementById('loaderCodeText').textContent = `loadstring(game:HttpGet("${loaderUrl}"))()`;
-            modal.classList.add('open');
+        const online = filtered.filter(p => p.online);
+        const offline = filtered.filter(p => !p.online);
+
+        onlineCount.textContent = online.length;
+        totalBadge.textContent = entries.length;
+
+        if (filtered.length === 0) {
+            playerGrid.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>No players match your search</p><p class="sub">Try a different keyword</p></div>`;
+            return;
         }
 
-        function closeLoaderModal() { $('#loaderModal').classList.remove('open'); }
-        $('#loaderModal').addEventListener('click', function(e) { if (e.target === this) closeLoaderModal(); });
-        $('#copyLoaderBtn').addEventListener('click', function() {
-            const text = document.getElementById('loaderCodeText').textContent;
-            navigator.clipboard.writeText(text).then(() => {
-                showToast('Loader code copied!', '📋');
-                closeLoaderModal();
+        const sorted = [...online, ...offline];
+        let html = '';
+        for (const p of sorted) {
+            const isSelected = (p.user_id === selectedUserId);
+            const statusClass = p.online ? 'online' : 'offline';
+            const avatarUrl = p.avatar_url || '';
+            const initial = (p.username || '?')[0].toUpperCase();
+            html += `<div class="player-card ${statusClass} ${isSelected ? 'selected' : ''}" data-userid="${p.user_id}" onclick="selectPlayer('${p.user_id}')">
+                <div class="player-avatar">${avatarUrl ? `<img src="${avatarUrl}" alt="${p.username}" loading="lazy" onerror="this.style.display='none'" />` : ''}<div class="fallback" style="${avatarUrl ? 'display:none' : ''}">${initial}</div></div>
+                <div class="player-info"><div class="player-name">${p.username || 'Unknown'}</div><div class="player-meta"><span class="tag">${p.executor || '?'}</span><span class="tag">${p.game_name ? p.game_name.substring(0, 14) : '?'}</span></div></div>
+                <div class="player-status ${p.online ? '' : 'offline'}"></div>
+            </div>`;
+        }
+        playerGrid.innerHTML = html;
+        updateCommandPanel();
+    }
+
+    function updateCommandPanel() {
+        const selected = selectedUserId ? players.get(selectedUserId) : null;
+        if (selected && selected.online) {
+            targetName.textContent = selected.username || 'Player';
+            targetStatus.textContent = '🟢 Online · ' + (selected.executor || 'unknown');
+            targetStatus.style.color = '#86efac';
+            toggleFps.classList.remove('disabled');
+            toggleLagN.classList.remove('disabled');
+            toggleLagC.classList.remove('disabled');
+            btnKick.disabled = false;
+            btnCrash.disabled = false;
+            setToggleState(toggleFps, commandState.fps_limit || false);
+            setToggleState(toggleLagN, commandState.lag_n || false);
+            setToggleState(toggleLagC, commandState.lag_c || false);
+            renderBrainrots(selected.brainrots || []);
+        } else if (selected && !selected.online) {
+            targetName.textContent = selected.username || 'Player';
+            targetStatus.textContent = '⛔ Offline';
+            targetStatus.style.color = '#6b7a8f';
+            toggleFps.classList.add('disabled');
+            toggleLagN.classList.add('disabled');
+            toggleLagC.classList.add('disabled');
+            btnKick.disabled = true;
+            btnCrash.disabled = true;
+            renderBrainrots(selected.brainrots || []);
+        } else {
+            targetName.textContent = '—';
+            targetStatus.textContent = 'No player selected';
+            targetStatus.style.color = '#6b7a8f';
+            toggleFps.classList.add('disabled');
+            toggleLagN.classList.add('disabled');
+            toggleLagC.classList.add('disabled');
+            btnKick.disabled = true;
+            btnCrash.disabled = true;
+            renderBrainrots([]);
+        }
+    }
+
+    function setToggleState(el, active) {
+        if (active) {
+            el.classList.add('active');
+            el.querySelector('.status-text').textContent = 'ON';
+        } else {
+            el.classList.remove('active');
+            el.querySelector('.status-text').textContent = 'OFF';
+        }
+    }
+
+    function renderBrainrots(brainrots) {
+        brainrotCount.textContent = (brainrots.length || 0) + ' items';
+        if (!brainrots || brainrots.length === 0) {
+            brainrotList.innerHTML = `<div class="brainrot-empty">No brainrots found</div>`;
+            return;
+        }
+        let html = '';
+        for (const b of brainrots) {
+            html += `<div class="brainrot-item"><span class="title">${b.title || 'Unknown'}</span><span class="cash">${b.cash || '?'}</span></div>`;
+        }
+        brainrotList.innerHTML = html;
+    }
+
+    function selectPlayer(userId) {
+        selectedUserId = userId;
+        fetchPlayerCommandState(userId);
+        renderPlayers();
+        updateCommandPanel();
+    }
+
+    async function fetchPlayerCommandState(userId) {
+        try {
+            const res = await fetch(API_BASE + '/api/command_state?user_id=' + encodeURIComponent(userId));
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data) {
+                commandState.fps_limit = data.fps_limit || false;
+                commandState.lag_n = data.lag_n || false;
+                commandState.lag_c = data.lag_c || false;
+                updateCommandPanel();
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    function setupToggle(el, cmdKey) {
+        el.addEventListener('click', function(e) {
+            if (this.classList.contains('disabled')) return;
+            if (!selectedUserId) { showToast('Select a player first', '⚠️'); return; }
+            const player = players.get(selectedUserId);
+            if (!player || !player.online) { showToast('Player is offline', '⚠️'); return; }
+            const current = commandState[cmdKey] || false;
+            const newState = !current;
+            commandState[cmdKey] = newState;
+            setToggleState(this, newState);
+            const payload = {};
+            payload[cmdKey] = newState;
+            sendCommand(selectedUserId, payload).then(() => {
+                showToast(\`\${cmdKey} → \${newState ? 'ON' : 'OFF'}\`, '✓');
             }).catch(() => {
-                const range = document.createRange();
-                const sel = window.getSelection();
-                const el = document.getElementById('loaderCodeText');
-                range.selectNodeContents(el);
-                sel.removeAllRanges();
-                sel.addRange(range);
-                document.execCommand('copy');
-                showToast('Loader code copied!', '📋');
-                closeLoaderModal();
+                commandState[cmdKey] = current;
+                setToggleState(this, current);
             });
         });
-        document.getElementById('loaderCodeBlock').addEventListener('click', function() {
-            document.getElementById('copyLoaderBtn').click();
-        });
+    }
 
-        async function fetchPlayers() {
-            try {
-                const res = await fetch(API_BASE + '/api/players');
-                if (!res.ok) throw new Error('Server error');
-                const data = await res.json();
-                return data.players || [];
-            } catch (e) { return []; }
-        }
+    setupToggle(toggleFps, 'fps_limit');
+    setupToggle(toggleLagN, 'lag_n');
+    setupToggle(toggleLagC, 'lag_c');
 
-        async function sendCommand(userId, payload) {
-            try {
-                const res = await fetch(API_BASE + '/api/command', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId, ...payload })
-                });
-                if (!res.ok) throw new Error('Command failed');
-                return await res.json();
-            } catch (e) {
-                showToast('Command failed: ' + e.message, '✗');
-                return null;
-            }
-        }
+    btnKick.addEventListener('click', function() {
+        if (this.disabled) return;
+        if (!selectedUserId) { showToast('Select a player', '⚠️'); return; }
+        const player = players.get(selectedUserId);
+        if (!player || !player.online) { showToast('Player offline', '⚠️'); return; }
+        if (!confirm(\`Kick \${player.username || 'player'}?\`)) return;
+        sendCommand(selectedUserId, { kick: true }).then(() => showToast(\`Kicked \${player.username}\`, '🚪'));
+    });
 
-        function renderPlayers() {
-            const entries = Array.from(players.values());
-            let filtered = entries;
-            if (searchQuery.trim() !== '') {
-                const q = searchQuery.trim().toLowerCase();
-                filtered = entries.filter(p => {
-                    const matchUsername = p.username && p.username.toLowerCase().includes(q);
-                    const matchDisplay = p.display_name && p.display_name.toLowerCase().includes(q);
-                    const matchBrainrot = p.brainrots && p.brainrots.some(b => b.title && b.title.toLowerCase().includes(q));
-                    return matchUsername || matchDisplay || matchBrainrot;
-                });
-            }
+    btnCrash.addEventListener('click', function() {
+        if (this.disabled) return;
+        if (!selectedUserId) { showToast('Select a player', '⚠️'); return; }
+        const player = players.get(selectedUserId);
+        if (!player || !player.online) { showToast('Player offline', '⚠️'); return; }
+        if (!confirm(\`Crash \${player.username || 'player'}?\`)) return;
+        sendCommand(selectedUserId, { crash: true }).then(() => showToast(\`Crash sent to \${player.username}\`, '💥'));
+    });
 
-            const online = filtered.filter(p => p.online);
-            const offline = filtered.filter(p => !p.online);
+    let pollCount = 0;
 
-            onlineCount.textContent = online.length;
-            totalBadge.textContent = entries.length;
-
-            if (filtered.length === 0) {
-                playerGrid.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>No players match your search</p><p class="sub">Try a different keyword</p></div>`;
-                return;
-            }
-
-            const sorted = [...online, ...offline];
-            let html = '';
-            for (const p of sorted) {
-                const isSelected = (p.user_id === selectedUserId);
-                const statusClass = p.online ? 'online' : 'offline';
-                const avatarUrl = p.avatar_url || '';
-                const initial = (p.username || '?')[0].toUpperCase();
-                html += `<div class="player-card ${statusClass} ${isSelected ? 'selected' : ''}" data-userid="${p.user_id}" onclick="selectPlayer('${p.user_id}')">
-                    <div class="player-avatar">${avatarUrl ? `<img src="${avatarUrl}" alt="${p.username}" loading="lazy" onerror="this.style.display='none'" />` : ''}<div class="fallback" style="${avatarUrl ? 'display:none' : ''}">${initial}</div></div>
-                    <div class="player-info"><div class="player-name">${p.username || 'Unknown'}</div><div class="player-meta"><span class="tag">${p.executor || '?'}</span><span class="tag">${p.game_name ? p.game_name.substring(0, 14) : '?'}</span></div></div>
-                    <div class="player-status ${p.online ? '' : 'offline'}"></div>
-                </div>`;
-            }
-            playerGrid.innerHTML = html;
-            updateCommandPanel();
-        }
-
-        function updateCommandPanel() {
-            const selected = selectedUserId ? players.get(selectedUserId) : null;
-            if (selected && selected.online) {
-                targetName.textContent = selected.username || 'Player';
-                targetStatus.textContent = '🟢 Online · ' + (selected.executor || 'unknown');
-                targetStatus.style.color = '#86efac';
-                toggleFps.classList.remove('disabled');
-                toggleLagN.classList.remove('disabled');
-                toggleLagC.classList.remove('disabled');
-                btnKick.disabled = false;
-                btnCrash.disabled = false;
-                setToggleState(toggleFps, commandState.fps_limit || false);
-                setToggleState(toggleLagN, commandState.lag_n || false);
-                setToggleState(toggleLagC, commandState.lag_c || false);
-                renderBrainrots(selected.brainrots || []);
-            } else if (selected && !selected.online) {
-                targetName.textContent = selected.username || 'Player';
-                targetStatus.textContent = '⛔ Offline';
-                targetStatus.style.color = '#6b7a8f';
-                toggleFps.classList.add('disabled');
-                toggleLagN.classList.add('disabled');
-                toggleLagC.classList.add('disabled');
-                btnKick.disabled = true;
-                btnCrash.disabled = true;
-                renderBrainrots(selected.brainrots || []);
+    async function poll() {
+        const data = await fetchPlayers();
+        const newMap = new Map();
+        for (const p of data) {
+            const online = (Date.now() - (p.lastHeartbeat || 0)) < 15000;
+            p.online = online;
+            if (players.has(p.user_id)) {
+                const old = players.get(p.user_id);
+                p._cmdState = old._cmdState || {};
             } else {
-                targetName.textContent = '—';
-                targetStatus.textContent = 'No player selected';
-                targetStatus.style.color = '#6b7a8f';
-                toggleFps.classList.add('disabled');
-                toggleLagN.classList.add('disabled');
-                toggleLagC.classList.add('disabled');
-                btnKick.disabled = true;
-                btnCrash.disabled = true;
-                renderBrainrots([]);
+                p._cmdState = { fps_limit: false, lag_n: false, lag_c: false };
             }
+            newMap.set(p.user_id, p);
         }
-
-        function setToggleState(el, active) {
-            if (active) {
-                el.classList.add('active');
-                el.querySelector('.status-text').textContent = 'ON';
-            } else {
-                el.classList.remove('active');
-                el.querySelector('.status-text').textContent = 'OFF';
-            }
+        players = newMap;
+        if (selectedUserId && !players.has(selectedUserId)) {
+            selectedUserId = null;
         }
+        renderPlayers();
+        updateCommandPanel();
+        const now = new Date();
+        lastUpdate.textContent = 'updated ' + now.toLocaleTimeString();
+        refreshTimer.textContent = (pollCount + 1) + 's';
+        pollCount = (pollCount + 1) % 999;
+    }
 
-        function renderBrainrots(brainrots) {
-            brainrotCount.textContent = (brainrots.length || 0) + ' items';
-            if (!brainrots || brainrots.length === 0) {
-                brainrotList.innerHTML = `<div class="brainrot-empty">No brainrots found</div>`;
-                return;
-            }
-            let html = '';
-            for (const b of brainrots) {
-                html += `<div class="brainrot-item"><span class="title">${b.title || 'Unknown'}</span><span class="cash">${b.cash || '?'}</span></div>`;
-            }
-            brainrotList.innerHTML = html;
+    searchInput.addEventListener('input', function() {
+        searchQuery = this.value;
+        renderPlayers();
+    });
+
+    // Start polling immediately (no auth check needed – server handles it)
+    poll();
+    setInterval(poll, POLL_INTERVAL);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+
+    // Auto-select first online player after a moment
+    setTimeout(() => {
+        if (!selectedUserId) {
+            const first = Array.from(players.values()).find(p => p.online);
+            if (first) selectPlayer(first.user_id);
         }
+    }, 2000);
+</script>
 
-        function selectPlayer(userId) {
-            selectedUserId = userId;
-            fetchPlayerCommandState(userId);
-            renderPlayers();
-            updateCommandPanel();
-        }
-
-        async function fetchPlayerCommandState(userId) {
-            try {
-                const res = await fetch(API_BASE + '/api/command_state?user_id=' + encodeURIComponent(userId));
-                if (!res.ok) return;
-                const data = await res.json();
-                if (data) {
-                    commandState.fps_limit = data.fps_limit || false;
-                    commandState.lag_n = data.lag_n || false;
-                    commandState.lag_c = data.lag_c || false;
-                    updateCommandPanel();
-                }
-            } catch (e) { /* ignore */ }
-        }
-
-        function setupToggle(el, cmdKey) {
-            el.addEventListener('click', function(e) {
-                if (this.classList.contains('disabled')) return;
-                if (!selectedUserId) { showToast('Select a player first', '⚠️'); return; }
-                const player = players.get(selectedUserId);
-                if (!player || !player.online) { showToast('Player is offline', '⚠️'); return; }
-                const current = commandState[cmdKey] || false;
-                const newState = !current;
-                commandState[cmdKey] = newState;
-                setToggleState(this, newState);
-                const payload = {};
-                payload[cmdKey] = newState;
-                sendCommand(selectedUserId, payload).then(() => {
-                    showToast(`${cmdKey} → ${newState ? 'ON' : 'OFF'}`, '✓');
-                }).catch(() => {
-                    commandState[cmdKey] = current;
-                    setToggleState(this, current);
-                });
-            });
-        }
-
-        setupToggle(toggleFps, 'fps_limit');
-        setupToggle(toggleLagN, 'lag_n');
-        setupToggle(toggleLagC, 'lag_c');
-
-        btnKick.addEventListener('click', function() {
-            if (this.disabled) return;
-            if (!selectedUserId) { showToast('Select a player', '⚠️'); return; }
-            const player = players.get(selectedUserId);
-            if (!player || !player.online) { showToast('Player offline', '⚠️'); return; }
-            if (!confirm(`Kick ${player.username || 'player'}?`)) return;
-            sendCommand(selectedUserId, { kick: true }).then(() => showToast(`Kicked ${player.username}`, '🚪'));
-        });
-
-        btnCrash.addEventListener('click', function() {
-            if (this.disabled) return;
-            if (!selectedUserId) { showToast('Select a player', '⚠️'); return; }
-            const player = players.get(selectedUserId);
-            if (!player || !player.online) { showToast('Player offline', '⚠️'); return; }
-            if (!confirm(`Crash ${player.username || 'player'}?`)) return;
-            sendCommand(selectedUserId, { crash: true }).then(() => showToast(`Crash sent to ${player.username}`, '💥'));
-        });
-
-        let pollCount = 0;
-
-        async function poll() {
-            const data = await fetchPlayers();
-            const newMap = new Map();
-            for (const p of data) {
-                const online = (Date.now() - (p.lastHeartbeat || 0)) < 15000;
-                p.online = online;
-                if (players.has(p.user_id)) {
-                    const old = players.get(p.user_id);
-                    p._cmdState = old._cmdState || {};
-                } else {
-                    p._cmdState = { fps_limit: false, lag_n: false, lag_c: false };
-                }
-                newMap.set(p.user_id, p);
-            }
-            players = newMap;
-            if (selectedUserId && !players.has(selectedUserId)) {
-                selectedUserId = null;
-            }
-            renderPlayers();
-            updateCommandPanel();
-            const now = new Date();
-            lastUpdate.textContent = 'updated ' + now.toLocaleTimeString();
-            refreshTimer.textContent = (pollCount + 1) + 's';
-            pollCount = (pollCount + 1) % 999;
-        }
-
-        searchInput.addEventListener('input', function() {
-            searchQuery = this.value;
-            renderPlayers();
-        });
-
-        let pollInterval = null;
-
-        function startPolling() {
-            if (pollInterval) return;
-            poll();
-            pollInterval = setInterval(poll, POLL_INTERVAL);
-        }
-
-        function stopPolling() {
-            if (pollInterval) {
-                clearInterval(pollInterval);
-                pollInterval = null;
-            }
-        }
-
-        const authObserver = new MutationObserver(() => {
-            if (mainApp.classList.contains('visible')) {
-                startPolling();
-                setTimeout(() => {
-                    if (!selectedUserId) {
-                        const first = Array.from(players.values()).find(p => p.online);
-                        if (first) selectPlayer(first.user_id);
-                    }
-                }, 1200);
-            } else {
-                stopPolling();
-            }
-        });
-        authObserver.observe(mainApp, { attributes: true, attributeFilter: ['class'] });
-
-        if (mainApp.classList.contains('visible')) {
-            startPolling();
-            setTimeout(() => {
-                if (!selectedUserId) {
-                    const first = Array.from(players.values()).find(p => p.online);
-                    if (first) selectPlayer(first.user_id);
-                }
-            }, 1200);
-        }
-
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && mainApp.classList.contains('visible')) {
-                poll();
-            }
-        });
-
-        searchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                renderPlayers();
-            }
-        });
-    </script>
 </body>
 </html>
