@@ -5,7 +5,9 @@ const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const PUBLIC_URL = process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || 'https://janaa-2iy1.onrender.com';
+
+// ─── CHANGE THIS TO YOUR ACTUAL DOMAIN ───
+const PUBLIC_URL = process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || 'https://ligma-balls.up.railway.app';
 
 app.use(cors({ origin: PUBLIC_URL, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
@@ -125,7 +127,7 @@ app.post('/api/logout', (req, res) => {
 // ─── PLAYERS STORE ───
 const players = new Map();
 
-// ─── PUBLIC LOADER (no session) ───
+// ─── PUBLIC LOADER (full code) ───
 app.get('/loader.lua', (req, res) => {
     const loader = `local BASE = "${PUBLIC_URL}"
 local KEY  = "xenooooo"
@@ -547,7 +549,7 @@ end)`;
     res.send(loader);
 });
 
-// ─── PUBLIC PANEL (no session) ───
+// ─── PUBLIC PANEL (full code) ───
 app.get('/panel.lua', (req, res) => {
     const panel = `local BASE_URL = "${PUBLIC_URL}"
 
@@ -1232,7 +1234,6 @@ app.get('/api/players', requireSession, (req, res) => {
     const OFFLINE_THRESHOLD = 15000;
     const REMOVE_THRESHOLD = 20 * 60 * 1000;
 
-    console.log(`[Players] Serving /api/players, total entries: ${players.size}`);
     for (const [id, p] of players.entries()) {
         const timeSinceLast = now - (p.lastHeartbeat || 0);
         const online = timeSinceLast < OFFLINE_THRESHOLD;
@@ -1284,10 +1285,8 @@ app.post('/api/command', requireSession, (req, res) => {
     res.json({ status: 'ok' });
 });
 
-// ─── PUBLIC heartbeat ───
 app.post('/api/public/heartbeat', (req, res) => {
     const data = req.body;
-    console.log('[Heartbeat] Received from:', data?.user_id, data?.username);
     if (!data || !data.user_id) {
         return res.status(400).json({ error: 'Missing user_id' });
     }
@@ -1345,7 +1344,6 @@ app.get('/api/public/command', (req, res) => {
     res.json(response);
 });
 
-// ─── START ───
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT} (public URL: ${PUBLIC_URL})`);
 });
