@@ -15,7 +15,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // ─── SESSION STORE ───
 const sessions = new Map();
-const CORRECT_PASSWORD = '18100diddyblud';
+const CORRECT_PASSWORD = 'imgayandimgabe';   // <-- UPDATED
 const SESSION_TTL = 24 * 60 * 60 * 1000; // 24h
 const COOKIE_NAME = 'xeno_sid';
 
